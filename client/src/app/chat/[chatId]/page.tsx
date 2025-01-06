@@ -44,7 +44,7 @@ export default function ChatPage() {
 
 		async function fetchChat() {
 			try {
-				const res = await fetch(`http://localhost:8000/load-chat/${chatId}`);
+				const res = await fetch(`https://pdf-rag-server-6d8d37226227.herokuapp.com/load-chat/${chatId}`);
 
 				// If the server indicates that no chat exists (like a 404),
 				// assume it's a new chat with no prior messages
@@ -89,7 +89,7 @@ export default function ChatPage() {
 		setIsLoading(true);
 
 		try {
-			const response = await fetch(`http://localhost:8000/ask/${chatId}`, {
+			const response = await fetch(`https://pdf-rag-server-6d8d37226227.herokuapp.com/ask/${chatId}`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ question: userMessage }),

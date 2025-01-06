@@ -27,7 +27,7 @@ export default function HomePage() {
     formData.append("file", pdfFile)
 
     try {
-      const res = await fetch("http://localhost:8000/upload-pdf", {
+      const res = await fetch("https://pdf-rag-server-6d8d37226227.herokuapp.com/upload-pdf", {
         method: "POST",
         body: formData,
       })
@@ -46,7 +46,7 @@ export default function HomePage() {
   const handleNewChat = async () => {
     setIsCreating(true)
     try {
-      const res = await fetch("http://localhost:8000/new", {
+      const res = await fetch("https://pdf-rag-server-6d8d37226227.herokuapp.com/new", {
         method: "POST",
       })
       const data = await res.json()
