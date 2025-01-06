@@ -1,5 +1,5 @@
 from firebase_admin import firestore
-from .db import db
+from db import db
 COLLECTION_NAME = "chats"
 
 def create_chat_session_in_firestore(chat_id: str):

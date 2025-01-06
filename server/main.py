@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os 
 import shutil 
-
+from firebase import load_chat_messages_from_firestore
 from chatbot import create_chat_session, create_vector_store, answer_question
 
 app = FastAPI()
@@ -39,11 +39,16 @@ def upload_pdf(file: UploadFile = File(...)):
 @app.post("/new")
 def new_chat(): 
         chat_id = create_chat_session()
-        return {"chat_id": chat_id}
+        return { "chat_id": chat_id }
 
 class AskQueryReq(BaseModel): 
         question: str
         
+@app.route('/load-chat/{chat_id}')
+def load_chat(chat_id: str): 
+        messages = load_chat_messages_from_firestore(chat_id=chat_id)
+        return { "messages": messages }
+
 @app.post("/ask/{chat_id}")
 def ask(chat_id: str, payload: AskQueryReq): 
         try: 

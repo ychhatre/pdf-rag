@@ -1,5 +1,5 @@
 import os
-from pinecone import Pinecone, ServerlessSpec
+from pinecone import Pinecone 
 from uuid import uuid4
 from dotenv import load_dotenv
 
@@ -11,21 +11,15 @@ from langchain.memory import ConversationBufferMemory
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+from firebase import load_chat_messages_from_firestore, create_chat_session_in_firestore, append_message_to_firestore
 load_dotenv()
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-PINECONE_ENV = os.getenv("PINECONE_ENVIRONMENT")
 INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 pc = Pinecone(api_key=PINECONE_API_KEY)
-if INDEX_NAME not in pc.list_indexes().names(): 
-        pc.create_index(
-		name=INDEX_NAME,
-		dimension=1536, 
-		metric="cosine",
-		spec=ServerlessSpec(cloud="aws", region="us-east-1")
-	)
+
 index = pc.Index(INDEX_NAME)
 embedding = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
 
@@ -48,44 +42,53 @@ def create_vector_store(file_path: str) -> PineconeVectorStore:
 	)
         return vec_store
 
-def create_chat_session(vector_store=None): 
-        chat_id = str(uuid4())
+def create_chain(vector_store=None, memory=None) -> ConversationalRetrievalChain: 
+        if memory is None: 
+                memory = ConversationBufferMemory(
+				memory_key="chat_history",
+				return_messages=True,
+				output_key='answer'
+			)
         if vector_store is None: 
                 vector_store = PineconeVectorStore(
                     index, embedding.embed_query, INDEX_NAME
                 )
         retriever = vector_store.as_retriever(search_kwargs={"k": 3})
-        
-        memory = ConversationBufferMemory(
-			memory_key="chat_history",
-			return_messages=True,
-			output_key='answer'
-		)
-        
+
         llm = ChatOpenAI(
 			openai_api_key=OPENAI_API_KEY,
 			model_name="gpt-3.5-turbo",
 			temperature=0.0
 		)
-        
         chain = ConversationalRetrievalChain.from_llm(
 			llm=llm, 
 			retriever=retriever,
 			memory=memory,
-			return_source_documents=True,
+			return_source_documents=True
 		)
-        active_chats[chat_id] = chain
-        
+        return chain 
+
+def create_chat_session(vector_store=None): 
+        chat_id = str(uuid4())
+        active_chats[chat_id] = create_chain(vector_store=vector_store)
+        create_chat_session_in_firestore(chat_id=chat_id)
         return chat_id
 
 def answer_question(chat_id: str, question: str): 
-        if chat_id not in active_chats: 
-                raise ValueError("Chat session not found.")
-        
-        chain = active_chats[chat_id]
+        if chat_id in active_chats: 
+                chain = active_chats[chat_id]
+        else: 
+                old_messages = load_chat_messages_from_firestore(chat_id)
+                if old_messages: 
+                        mem = preload_old_messages(chat_id)
+                        chain = create_chain(memory=mem)
+                        active_chats[chat_id] = chain
+                else: 
+                        raise ValueError("Chat ID not found in memory or Firestore.")
+
         result = chain({
-			"question": question
-		})
+            "question": question
+        })
 
         answer = result['answer']
         source_docs = result['source_documents']
@@ -95,7 +98,22 @@ def answer_question(chat_id: str, question: str):
                 src = doc.metadata.get("source", "Unknown Source")
                 page = doc.metadata.get("page", "?")
                 sources.append(f"{src} (page {page})")
+        append_message_to_firestore(chat_id=chat_id, role="user", content=question)
+        append_message_to_firestore(chat_id=chat_id, role="assistant", content=answer)
+        
         return {
 			"answer": answer, 
 			"sources": sources
 		}
+
+def preload_old_messages(chat_id: str) -> ConversationBufferMemory: 
+        messages = load_chat_messages_from_firestore(chat_id=chat_id)
+        memory = ConversationBufferMemory(return_messages=True)
+        for message in messages: 
+                role = message['role']
+                content = message['content']
+                if role == 'user': 
+                        memory.chat_memory.add_user_message(content)
+                else: 
+                        memory.chat_memory.add_ai_message(content)
+        return memory 
