@@ -13,16 +13,12 @@ export default function HomePage() {
   const [isUploading, setIsUploading] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
 
-  // ---------------------------
-  // 1) My Chats from localStorage
   const [myChats, setMyChats] = useState<string[]>([])
 
   useEffect(() => {
-    // Load "myChats" from localStorage
     const storedChats = JSON.parse(localStorage.getItem("myChats") || "[]")
     setMyChats(storedChats)
   }, [])
-  // ---------------------------
 
   const handlePdfUpload = async () => {
     if (!pdfFile) return

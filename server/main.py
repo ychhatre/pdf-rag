@@ -26,10 +26,8 @@ def upload_pdf(file: UploadFile = File(...)):
                 with open(file_location, "wb") as buffer:
                     shutil.copyfileobj(file.file, buffer)
 
-                # Create vectorstore from the uploaded PDF
                 vectorstore = create_vector_store(file_location)
 
-                # Create a new chat session that uses this vectorstore
                 chat_id = create_chat_session(vector_store=vectorstore)
 
                 return {"chat_id": chat_id, "status": "PDF indexed successfully"}
@@ -43,8 +41,8 @@ def new_chat():
 
 class AskQueryReq(BaseModel): 
         question: str
-        
-@app.route('/load-chat/{chat_id}')
+
+@app.get("/load-chat/{chat_id}")
 def load_chat(chat_id: str): 
         messages = load_chat_messages_from_firestore(chat_id=chat_id)
         return { "messages": messages }
