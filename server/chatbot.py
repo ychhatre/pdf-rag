@@ -11,7 +11,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-from firebase import load_chat_messages_from_firestore, create_chat_session_in_firestore, append_message_to_firestore
+from firebase import load_chat_messages_from_firestore, create_chat_session_in_firestore, append_message_to_firestore, check_chat_exists
 load_dotenv()
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
@@ -78,8 +78,7 @@ def answer_question(chat_id: str, question: str):
         if chat_id in active_chats: 
                 chain = active_chats[chat_id]
         else: 
-                old_messages = load_chat_messages_from_firestore(chat_id)
-                if old_messages: 
+                if check_chat_exists(chat_id=chat_id):  
                         mem = preload_old_messages(chat_id)
                         chain = create_chain(memory=mem)
                         active_chats[chat_id] = chain
