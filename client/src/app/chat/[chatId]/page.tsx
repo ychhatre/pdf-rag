@@ -32,7 +32,7 @@ export default function ChatPage() {
 		if (!chatId) return;
 	    
 		const stored = localStorage.getItem("myChats");
-		let myChats = stored ? JSON.parse(stored) : [];
+		const myChats = stored ? JSON.parse(stored) : [];
 		if (!myChats.includes(chatId)) {
 		  myChats.push(chatId);
 		  localStorage.setItem("myChats", JSON.stringify(myChats));
